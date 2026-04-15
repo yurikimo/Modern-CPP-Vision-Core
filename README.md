@@ -1,205 +1,208 @@
-# ImageBuffer – Modern C++ Memory & Move Semantics
+🖼️ Image I/O – RGB Load & Save
+===============================
 
-This project demonstrates core modern C++ concepts:
+This module provides a **safe, minimal, and production-ready image pipeline** built around strict ownership and predictable data representation.
 
-- RAII (Resource Acquisition Is Initialization)
-- Move semantics
-- Copy prevention
-- Stack vs Heap allocation
-- lvalue vs rvalue behavior
+* * *
 
----
+🎯 Goal
+-------
 
-## 📦 Class Overview
+Provide a clean pipeline to:
 
-`ImageBuffer` manages a dynamically allocated array of `float`.
+* Load an image from disk
 
-```cpp
-class ImageBuffer
-{
-private:
-    size_t Size = 0;
-    float* Data = nullptr;
-};
-```
+* Convert it into a normalized float buffer
 
----
+* Store it safely (`ImageBuffer`)
 
-## 🧠 Memory Management (RAII)
+* Save it back to disk
 
-- Memory is allocated in the constructor
-- Memory is released in the destructor
+* Ensure correctness for future image processing
 
-```cpp
-ImageBuffer(size_t InSize);
-~ImageBuffer();
-```
+* * *
 
-This ensures:
+🧱 Architecture
+---------------
 
-> No memory leaks and deterministic cleanup
+### `ImageBuffer`
 
----
+Owns and manages pixel memory.
 
-## 🚫 Copy Disabled
+Responsibilities:
 
-```cpp
-ImageBuffer(const ImageBuffer&) = delete;
-ImageBuffer& operator=(const ImageBuffer&) = delete;
-```
+* RAII memory ownership
 
-### Why?
+* Stores metadata (width, height, channel count)
 
-Copying would duplicate the pointer, causing:
+* Provides safe and fast pixel access
 
-- Double deletion
-- Undefined behavior
-- Unnecessary memory allocation
+* Prevents undefined behavior from uninitialized reads
 
----
+* * *
 
-## 🚀 Move Semantics
+### `ImageCodec`
 
-### Move Constructor
+Handles all I/O and format conversion.
 
-```cpp
-ImageBuffer(ImageBuffer&& other) noexcept;
-```
+Responsibilities:
 
-### Move Assignment
+* Decode images (via STB)
 
-```cpp
-ImageBuffer& operator=(ImageBuffer&& other) noexcept;
-```
+* Encode PNG output
 
-### Behavior
+* Convert between:
+  
+  * `uint8 [0..255]` (file format)
+  
+  * `float [0..1]` (internal format)
 
-- Transfers ownership of memory
-- Leaves source object in a valid empty state:
-  - `Data = nullptr`
-  - `Size = 0`
+* * *
 
----
+📦 Data Representation
+----------------------
 
-## ⚡ Why `noexcept`?
+Images are stored as:
 
-- Guarantees no exceptions
-- Enables optimizations in STL containers
-- Required for efficient moves in `std::vector`
+* `float` values in range `[0.0, 1.0]`
 
----
+* Interleaved layout:
+    [R, G, B, R, G, B, ...]
 
-## 🔄 lvalue vs rvalue
+Indexing formula:
+    index = (y * width + x) * channelCount + c;
 
-### lvalue
+* * *
 
-- Named object
-- Has persistent memory
+⚠️ Critical Design Guarantees
+--------------------------------------------
+
+### 1. ✅ No uninitialized memory
+
+Pixel buffers are **always initialized**.
 
 ```cpp
-imageBuffer buffer(1024);
+    data_ = new float[size_](); // value-initialized to 0.0f
 ```
 
-### rvalue
+This prevents:
 
-- Temporary or explicitly marked as movable
+* Undefined behavior
+
+* Random artifacts
+
+* NaN propagation
+
+* * *
+
+### 2. ✅ Safe STB memory ownership (RAII)
+
+STB allocations are wrapped immediately:
 
 ```cpp
-std::move(buffer);
+    struct StbiImageDeleter
+    {
+        void operator()(unsigned char* p) const noexcept
+        {
+            stbi_image_free(p);
+        }
+    };
+    using StbiImagePtr = std::unique_ptr<unsigned char, StbiImageDeleter>;
 ```
 
----
-
-## ❗ Why `std::move` is required
-
-Without it:
+Usage:
 
 ```cpp
-ProcessBuffer(buffer);
+    StbiImagePtr pixels(stbi_load(...));
 ```
 
-- Tries to copy → ❌ fails (copy is deleted)
+This guarantees:
 
-With it:
+* No leaks
+
+* Exception safety
+
+* Clean ownership transfer
+
+* * *
+
+### 3. ❗Byte → float conversion
+
+**Important:** STB returns `unsigned char*`, but `ImageBuffer` stores `float`.
 
 ```cpp
-ProcessBuffer(std::move(buffer));
+    const float* dst = buffer.GetData();
+    for (size_t i = 0; i < buffer.GetSize(); ++i)
+    {
+        dst[i] = static_cast<float>(src[i]) / 255.0f;
+    }
 ```
 
-- Uses move constructor → ✅ works
+* * *
 
----
+### 4. ⚠️ Channel consistency
 
-## 🔍 Function Parameter Behavior
+* Load currently forces **3 channels (RGB)**
 
-### ❌ By value (copy required)
+* Save currently expects **RGB (3 channels)**
+
+Make sure pipeline is consistent:
+    constexpr int RgbChannelCount = 3; // recommended for now
+
+* * *
+
+🔄 Load Pipeline
+----------------
 
 ```cpp
-void ProcessBuffer(image_buffer buffer);
+    ImageBuffer ImageCodec::LoadFromFile(const std::string& path)
+    {
+        ...
+    }
 ```
 
-- Requires copy or move
+* * *
 
----
-
-### ✅ By reference (no copy)
+💾 Save Pipeline
+----------------
 
 ```cpp
-void ProcessBuffer(image_buffer& buffer);
+    bool ImageCodec::SaveRgbToPng(const ImageBuffer& buffer, const std::string& path)
+    {
+        ...
+    }
 ```
 
-- Works without copy
+* * *
 
----
+🧠 Key Invariants
+-----------------
 
-### ✅ By pointer (no copy)
+The system now guarantees:
 
-```cpp
-void ProcessBuffer(image_buffer* buffer);
-```
+* `ImageBuffer` is always valid after construction
 
-- Pass address explicitly
+* Pixel memory is never read uninitialized
 
----
+* STB memory is never leaked
 
-## 🧪 Example Execution
+* Float/byte conversions are explicit and correct
 
-```cpp
-imageBuffer buffer(1024);
-ProcessBuffer(std::move(buffer));
-```
 
-### Output
 
-```
-Buffer created
-Buffer created for moving
-Processing Buffer
-Buffer deleted
-Buffer is cleaned
-Buffer deleted
-```
+* * *
 
-### Explanation
+💡 Summary
+----------
 
-- First delete → moved object inside function
-- Second delete → original object (now empty)
+The pipeline is now:
 
----
+* ✅ Exception-safe
 
-## 🧠 Key Takeaways
+* ✅ Memory-safe
 
-- RAII guarantees safe memory handling
-- Copy must be disabled for raw pointer ownership
-- Move semantics enable high-performance transfers
-- `std::move` does not move — it enables moving
-- lvalue vs rvalue determines which constructor is used
+* ✅ Deterministic
 
----
+* ✅ Ready for image processing extensions
 
-## 🎯 Goal of this Project
-
-This project is to showcase:
-
-- Master modern C++ (C++17+)
-- Low-level memory management
+* * *

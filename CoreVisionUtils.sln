@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MoveOnlyBuffer", "MoveOnlyBuffer\MoveOnlyBuffer.vcxproj", "{E414AEA9-05D5-4BA1-A9E2-B07DAFE6D588}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ImageProcessing", "ImageProcessing\ImageProcessing.vcxproj", "{E414AEA9-05D5-4BA1-A9E2-B07DAFE6D588}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
