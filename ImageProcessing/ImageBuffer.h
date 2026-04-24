@@ -3,6 +3,7 @@
 #include <ostream>
 #include <span>
 #include <memory>
+#include <optional>
 
 class ImageBuffer
 {
@@ -38,21 +39,25 @@ public:
     std::span<float> GetSpan() {return std::span<float>(data_.get(), size_);}
     std::span<const float> GetSpan() const {return std::span<const float>(data_.get(), size_);}
     
-    std::span<float> GetSubSpan(size_t offset, size_t count)
+    std::optional<std::span<float>> GetSubSpan(size_t offset, size_t count)
     {
         if (offset > size_ || count > size_ - offset)
         {
-            throw std::out_of_range("Subspan out of range");
+            std::cout << "Subspan out of range" << '\n';
+            
+            return std::nullopt;
         }
         
         return std::span<float>(data_.get() + offset, count);
     }
     
-    std::span<const float> GetSubSpan(size_t offset, size_t count) const
+    std::optional<std::span<const float>> GetSubSpan(size_t offset, size_t count) const
     {
         if (offset > size_ || count > size_ - offset)
         {
-            throw std::out_of_range("Subspan out of range");
+            std::cout << "Subspan out of range" << '\n';
+            
+            return std::nullopt;
         }
         
         return std::span<float>(data_.get() + offset, count);

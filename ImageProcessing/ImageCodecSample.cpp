@@ -7,25 +7,35 @@ int main(int argc, char* argv[])
 {
     try
     {
-        const ImageBuffer imageBuffer = ImageCodec::LoadRgbFromFile("laika.png");
+        std::optional<ImageBuffer> imageBuffer = ImageCodec::LoadRgbFromFile("laika.png");
         
-        if (!ImageCodec::SaveRgbToPng(imageBuffer, "output.png"))
+        if (!imageBuffer.has_value())
+        {
+            return 1;
+        }
+        
+        if (!ImageCodec::SaveRgbToPng(imageBuffer.value(), "output.png"))
         {
             std::cout << "Save failed" << '\n';
         }
         
-        const int width = imageBuffer.GetWidth();
-        const int height = imageBuffer.GetHeight();
-        const int channelCount = imageBuffer.GetChannelCount();
+        const int width = imageBuffer.value().GetWidth();
+        const int height = imageBuffer.value().GetHeight();
+        const int channelCount = imageBuffer.value().GetChannelCount();
         
         const int croppedHeight = height / 2;
         
         const size_t rowSize = static_cast<size_t>(width) * static_cast<size_t>(channelCount);
         const size_t croppedWidth = croppedHeight * rowSize;
         
-        const std::span<const float> topHalf = imageBuffer.GetSubSpan(0, croppedWidth);
+        const std::optional<std::span<const float>> topHalf = imageBuffer.value().GetSubSpan(0, croppedWidth);
         
-        if (!ImageCodec::SaveRgbToPng("output_top_half.png", topHalf, width, croppedHeight, channelCount))
+        if (!topHalf.has_value())
+        {
+            return 1;
+        }
+        
+        if (!ImageCodec::SaveRgbToPng("output_top_half.png", topHalf.value(), width, croppedHeight, channelCount))
         {
             std::cout << "Save failed" << '\n';
         }

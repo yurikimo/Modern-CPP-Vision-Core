@@ -1,5 +1,6 @@
 ﻿#include "ImageCodec.h"
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -9,6 +10,8 @@
 #include "stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <algorithm>
+
 #include "stb_image_write.h"
 
 constexpr int RgbChannelCount = 3;
@@ -23,7 +26,7 @@ struct StbiImageDeleter
 
 using StbiImagePtr = std::unique_ptr<unsigned char, StbiImageDeleter>;
 
-ImageBuffer ImageCodec::LoadRgbFromFile(const std::string& inPath)
+std::optional<ImageBuffer> ImageCodec::LoadRgbFromFile(const std::string& inPath)
 {
     int width, height, channelCount;
     
@@ -31,19 +34,23 @@ ImageBuffer ImageCodec::LoadRgbFromFile(const std::string& inPath)
     
     if (!pixels)
     {
-        throw std::runtime_error("Failed to load image: " + inPath);
+        std::cout << "Failed to load image: " << inPath << '\n';
+        
+        return std::nullopt;
     }
     
     ImageBuffer buffer(width, height, RgbChannelCount);
     
     float* data = buffer.GetData();
     const size_t size = buffer.GetSize();
-    const unsigned char* src = pixels.get();
+    const unsigned char* sourceData = pixels.get();
     
-    for (size_t i = 0; i < size; i++)
+    auto byteToFloat = [](const unsigned char p)
     {
-        data[i] = static_cast<float>(src[i]) / 255.0f;
-    }
+        return static_cast<float>(p) / 255.0f;
+    };
+    
+    std::transform(sourceData, sourceData + size, data, byteToFloat);
     
     return buffer;
 }
@@ -71,23 +78,17 @@ bool ImageCodec::SaveRgbToPng(const std::string& inPath, const std::span<const f
     const size_t size = inData.size();
     
     const float* sourceData = inData.data();
+    
     std::vector<unsigned char> outputData(size);
     
-    for (size_t i = 0; i < size; i++)
+    auto floatToByte = [](const float value)
     {
-        float value = sourceData[i];
+        const float clamp = std::clamp(value, 0.f, 1.f);
         
-        if (value < 0.0f)
-        {
-            value = 0.0f;
-        }
-        else if (value > 1.0f)
-        {
-            value = 1.0f;
-        }
-        
-        outputData[i] = static_cast<unsigned char>(value * 255.0f);
-    }
+        return static_cast<unsigned char>(clamp * 255.0f);
+    };
+    
+    std::transform(sourceData, sourceData + size, outputData.begin(), floatToByte);
     
     const unsigned int strideInBytes = width * channelCount;
     

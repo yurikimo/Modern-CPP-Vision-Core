@@ -189,20 +189,77 @@ The system now guarantees:
 * Float/byte conversions are explicit and correct
 
 
+💡 Modern C++
+--------------------------
+
+### Lambdas
+
+Lambdas are used to define **small, localized functions inline**, without polluting the class or global scope.
+
+Advantages:
+
+* Improve **readability** by keeping logic close to where it is used  
+* Avoid creating unnecessary helper functions  
+* Help express intent clearly in transformations and algorithms  
+
+Example:
+
+```cpp
+	auto byteToFloat = [](const unsigned char p)
+    {
+        return static_cast<float>(p) / 255.0f;
+    };
+    
+    std::transform(sourceData, sourceData + size, data, byteToFloat);
+````
+
+This could also be expressed as a lambda when appropriate.
+
+---
+
+### `std::optional`
+
+`std::optional` is used to represent a value that **may or may not exist**, without relying on invalid states or sentinel values.
+
+Advantages:
+
+* Makes absence of value **explicit and type-safe**
+* Avoids undefined behavior from invalid returns (e.g., null pointers or invalid spans)
+* Forces the caller to **handle failure cases explicitly**
+* Improves API clarity and correctness
+
+Example usage:
+
+```cpp
+	std::optional<std::span<float>> GetSubSpan(size_t offset, size_t count)
+    {
+        if (offset > size_ || count > size_ - offset)
+        {
+            std::cout << "Subspan out of range" << '\n';
+            
+            return std::nullopt;
+        }
+        
+        return std::span<float>(data_.get() + offset, count);
+    }
+```
+
+Instead of returning an invalid span or silently failing, the function can return:
+
+* `std::nullopt` → invalid request
+* valid `std::span` → safe access
+
+---
+
+These modern C++ features improve:
+
+* Safety
+* Expressiveness
+* Maintainability
+
+while keeping performance predictable.
+
+```
 
 * * *
 
-💡 Summary
-----------
-
-The pipeline is now:
-
-* ✅ Exception-safe
-
-* ✅ Memory-safe
-
-* ✅ Deterministic
-
-* ✅ Ready for image processing extensions
-
-* * *
