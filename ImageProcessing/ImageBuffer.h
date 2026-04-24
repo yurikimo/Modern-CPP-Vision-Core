@@ -1,37 +1,62 @@
 ﻿#pragma once
-#include <cstddef>
+#include <iostream>
+#include <ostream>
+#include <span>
+#include <memory>
 
 class ImageBuffer
 {
 private:
     size_t size_ = 0;
-    float* data_ = nullptr;
+    std::unique_ptr<float[]> data_;
     
     int width_ = 0;
     int height_ = 0;
     int channelCount_ = 0;
     
-    void Release();
 public:
     ImageBuffer();
     //Constructor allocates memory
     explicit ImageBuffer(int inWidth, int inHeight, int inChannelCount);
     
     //Destructor (RAII ensures no leaks)
-    ~ImageBuffer();
+    ~ImageBuffer() = default;
     
     //Rule: No accidental copy of large buffers
     ImageBuffer(const ImageBuffer&) = delete;
     ImageBuffer& operator=(const ImageBuffer&) = delete;
     
     //Moves: steal data from source
-    ImageBuffer(ImageBuffer&& other) noexcept;
-    ImageBuffer& operator=(ImageBuffer&& other) noexcept;
+    ImageBuffer(ImageBuffer&& other) noexcept = default;
+    ImageBuffer& operator=(ImageBuffer&& other) noexcept = default;
     
     void Fill(float inValue);
     
     float* GetData();
     const float* GetData() const;
+    
+    std::span<float> GetSpan() {return std::span<float>(data_.get(), size_);}
+    std::span<const float> GetSpan() const {return std::span<const float>(data_.get(), size_);}
+    
+    std::span<float> GetSubSpan(size_t offset, size_t count)
+    {
+        if (offset > size_ || count > size_ - offset)
+        {
+            throw std::out_of_range("Subspan out of range");
+        }
+        
+        return std::span<float>(data_.get() + offset, count);
+    }
+    
+    std::span<const float> GetSubSpan(size_t offset, size_t count) const
+    {
+        if (offset > size_ || count > size_ - offset)
+        {
+            throw std::out_of_range("Subspan out of range");
+        }
+        
+        return std::span<float>(data_.get() + offset, count);
+    }
     
     float& At(int x, int y, int c);
     const float& At(int x, int y, int c) const;

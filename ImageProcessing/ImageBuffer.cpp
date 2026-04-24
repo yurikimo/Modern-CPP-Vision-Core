@@ -1,4 +1,6 @@
-﻿#include "ImageBuffer.h"
+﻿//AtSafe() checks bounds; At() does not.
+
+#include "ImageBuffer.h"
 #include "SafeImageSize.h"
 
 #include <iostream>
@@ -11,70 +13,9 @@ ImageBuffer::ImageBuffer()
     std::cout << "Buffer created" << '\n';
 }
 
-ImageBuffer::ImageBuffer(const int inWidth, const int inHeight, const int inChannelCount)
+ImageBuffer::ImageBuffer(const int inWidth, const int inHeight, const int inChannelCount): size_(SafeImageSize(inWidth, inHeight, inChannelCount)), data_(std::make_unique<float[]>(size_)), width_(inWidth), height_(inHeight), channelCount_(inChannelCount)
 {
     std::cout << "Buffer created with parameters" << '\n';
-    
-    size_ = SafeImageSize(inWidth, inHeight, inChannelCount);
-    
-    width_ = inWidth;
-    height_ = inHeight;
-    channelCount_ = inChannelCount;
-    
-    data_ = new float[size_]();
-}
-
-//Destructor (RAII ensures no leaks)
-ImageBuffer::~ImageBuffer()
-{
-    Release();
-    
-    std::cout << "Buffer deleted" << '\n';
-}
-
-//Moves: steal data from source
-ImageBuffer::ImageBuffer(ImageBuffer&& other) noexcept: size_(other.size_), width_(other.width_), height_(other.height_), 
-                                                        channelCount_(other.channelCount_), data_(other.data_)
-{
-    std::cout << "Buffer created for moving" << '\n';
-    
-    other.size_ = 0;
-    other.width_ = 0;
-    other.height_ = 0;
-    other.channelCount_ = 0;
-    other.data_ = nullptr;
-}
-    
-void ImageBuffer::Release()
-{
-    delete[] data_;
-    data_ = nullptr;
-    size_ = 0;
-    width_ = 0;
-    height_ = 0;
-    channelCount_ = 0;
-}
-ImageBuffer& ImageBuffer::operator=(ImageBuffer&& other) noexcept
-{
-    if (this != &other)
-    {
-        Release();
-            
-        size_ = other.size_;
-        width_ = other.width_;
-        height_ = other.height_;
-        channelCount_ = other.channelCount_;
-        data_ = other.data_;
-            
-        
-        other.size_ = 0;
-        other.width_ = 0;
-        other.height_ = 0;
-        other.channelCount_ = 0;
-        other.data_ = nullptr;
-    }
-        
-    return *this;
 }
     
 void ImageBuffer::Fill(const float inValue)
@@ -85,17 +26,17 @@ void ImageBuffer::Fill(const float inValue)
         return;
     }
         
-    std::fill_n(data_, size_, inValue);
+    std::fill_n(data_.get(), size_, inValue);
 }
     
 float* ImageBuffer::GetData()
 {
-    return data_;
+    return data_.get();
 }
 
 const float* ImageBuffer::GetData() const
 {
-    return data_;
+    return data_.get();
 }
 
 float& ImageBuffer::At(const int x, const int y, const int c)

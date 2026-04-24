@@ -11,7 +11,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-constexpr int ForcedChannelCount = 3;
+constexpr int RgbChannelCount = 3;
 
 struct StbiImageDeleter
 {
@@ -27,14 +27,14 @@ ImageBuffer ImageCodec::LoadRgbFromFile(const std::string& inPath)
 {
     int width, height, channelCount;
     
-    StbiImagePtr pixels(stbi_load(inPath.c_str(), &width, &height, &channelCount, ForcedChannelCount));
+    StbiImagePtr pixels(stbi_load(inPath.c_str(), &width, &height, &channelCount, RgbChannelCount));
     
     if (!pixels)
     {
         throw std::runtime_error("Failed to load image: " + inPath);
     }
     
-    ImageBuffer buffer(width, height, ForcedChannelCount);
+    ImageBuffer buffer(width, height, RgbChannelCount);
     
     float* data = buffer.GetData();
     const size_t size = buffer.GetSize();
@@ -50,25 +50,27 @@ ImageBuffer ImageCodec::LoadRgbFromFile(const std::string& inPath)
 
 bool ImageCodec::SaveRgbToPng(const ImageBuffer& inBuffer, const std::string& inPath)
 {
-    if (inBuffer.GetData() == nullptr)
+    return SaveRgbToPng(inPath, inBuffer.GetSpan(), inBuffer.GetWidth(), inBuffer.GetHeight(), RgbChannelCount);
+}
+
+bool ImageCodec::SaveRgbToPng(const std::string& inPath, const std::span<const float> inData, const int width, const int height, const int channelCount)
+{
+    if (inData.data() == nullptr)
     {
         std::cout << "Buffer not allocated" << '\n';
         
         return false;
     }
     
-    if (inBuffer.GetChannelCount() != ForcedChannelCount)
+    if (channelCount != RgbChannelCount)
     {
         std::cout << "Save RGB requires a 3-channel buffer" << '\n';
         return false;
     }
     
-    const int width = inBuffer.GetWidth();
-    const int height = inBuffer.GetHeight();
-    const int channelCount = inBuffer.GetChannelCount();
-    const size_t size = inBuffer.GetSize();
+    const size_t size = inData.size();
     
-    const float* sourceData = inBuffer.GetData();
+    const float* sourceData = inData.data();
     std::vector<unsigned char> outputData(size);
     
     for (size_t i = 0; i < size; i++)
