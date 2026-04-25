@@ -1,265 +1,289 @@
-🖼️ Image I/O – RGB Load & Save
-===============================
+```md
+# OpenCV Integration
 
-This module provides a **safe, minimal, and production-ready image pipeline** built around strict ownership and predictable data representation.
+## Why integrate OpenCV?
 
-* * *
+OpenCV is a mature computer vision library used in real-world image processing, robotics, AR, automation, and AI-related applications.
 
-🎯 Goal
--------
+This project already has a custom `ImageBuffer` implementation to demonstrate modern C++ concepts such as:
 
-Provide a clean pipeline to:
+- RAII
+- move semantics
+- safe memory ownership
+- bounds checking
+- image loading and saving
+- basic image manipulation
 
-* Load an image from disk
+OpenCV is added to complement this work, not replace it.
 
-* Convert it into a normalized float buffer
+The goal is to use OpenCV for:
 
-* Store it safely (`ImageBuffer`)
+- validating image processing results
+- comparing custom implementations with industry-standard behavior
+- loading, saving, and transforming images quickly
+- experimenting with filters, color conversion, resizing, and computer vision algorithms
+- making the project more practical and relevant for real-world C++ development
 
-* Save it back to disk
+The custom `ImageBuffer` remains useful because it shows how image memory can be managed manually and safely in modern C++.
 
-* Ensure correctness for future image processing
-
-* * *
-
-🧱 Architecture
----------------
-
-### `ImageBuffer`
-
-Owns and manages pixel memory.
-
-Responsibilities:
-
-* RAII memory ownership
-
-* Stores metadata (width, height, channel count)
-
-* Provides safe and fast pixel access
-
-* Prevents undefined behavior from uninitialized reads
-
-* * *
-
-### `ImageCodec`
-
-Handles all I/O and format conversion.
-
-Responsibilities:
-
-* Decode images (via STB)
-
-* Encode PNG output
-
-* Convert between:
-  
-  * `uint8 [0..255]` (file format)
-  
-  * `float [0..1]` (internal format)
-
-* * *
-
-📦 Data Representation
-----------------------
-
-Images are stored as:
-
-* `float` values in range `[0.0, 1.0]`
-
-* Interleaved layout:
-    [R, G, B, R, G, B, ...]
-
-Indexing formula:
-    index = (y * width + x) * channelCount + c;
-
-* * *
-
-⚠️ Critical Design Guarantees
---------------------------------------------
-
-### 1. ✅ No uninitialized memory
-
-Pixel buffers are **always initialized**.
-
-```cpp
-    data_ = new float[size_](); // value-initialized to 0.0f
-```
-
-This prevents:
-
-* Undefined behavior
-
-* Random artifacts
-
-* NaN propagation
-
-* * *
-
-### 2. ✅ Safe STB memory ownership (RAII)
-
-STB allocations are wrapped immediately:
-
-```cpp
-    struct StbiImageDeleter
-    {
-        void operator()(unsigned char* p) const noexcept
-        {
-            stbi_image_free(p);
-        }
-    };
-    using StbiImagePtr = std::unique_ptr<unsigned char, StbiImageDeleter>;
-```
-
-Usage:
-
-```cpp
-    StbiImagePtr pixels(stbi_load(...));
-```
-
-This guarantees:
-
-* No leaks
-
-* Exception safety
-
-* Clean ownership transfer
-
-* * *
-
-### 3. ❗Byte → float conversion
-
-**Important:** STB returns `unsigned char*`, but `ImageBuffer` stores `float`.
-
-```cpp
-    const float* dst = buffer.GetData();
-    for (size_t i = 0; i < buffer.GetSize(); ++i)
-    {
-        dst[i] = static_cast<float>(src[i]) / 255.0f;
-    }
-```
-
-* * *
-
-### 4. ⚠️ Channel consistency
-
-* Load currently forces **3 channels (RGB)**
-
-* Save currently expects **RGB (3 channels)**
-
-Make sure pipeline is consistent:
-    constexpr int RgbChannelCount = 3; // recommended for now
-
-* * *
-
-🔄 Load Pipeline
-----------------
-
-```cpp
-    ImageBuffer ImageCodec::LoadFromFile(const std::string& path)
-    {
-        ...
-    }
-```
-
-* * *
-
-💾 Save Pipeline
-----------------
-
-```cpp
-    bool ImageCodec::SaveRgbToPng(const ImageBuffer& buffer, const std::string& path)
-    {
-        ...
-    }
-```
-
-* * *
-
-🧠 Key Invariants
------------------
-
-The system now guarantees:
-
-* `ImageBuffer` is always valid after construction
-
-* Pixel memory is never read uninitialized
-
-* STB memory is never leaked
-
-* Float/byte conversions are explicit and correct
-
-
-💡 Modern C++
---------------------------
-
-### Lambdas
-
-Lambdas are used to define **small, localized functions inline**, without polluting the class or global scope.
-
-Advantages:
-
-* Improve **readability** by keeping logic close to where it is used  
-* Avoid creating unnecessary helper functions  
-* Help express intent clearly in transformations and algorithms  
-
-Example:
-
-```cpp
-	auto byteToFloat = [](const unsigned char p)
-    {
-        return static_cast<float>(p) / 255.0f;
-    };
-    
-    std::transform(sourceData, sourceData + size, data, byteToFloat);
-````
-
-This could also be expressed as a lambda when appropriate.
+OpenCV adds real-world tooling on top of that foundation.
 
 ---
 
-### `std::optional`
+# Installing OpenCV 4.x with vcpkg
 
-`std::optional` is used to represent a value that **may or may not exist**, without relying on invalid states or sentinel values.
+## 1. Install vcpkg
 
-Advantages:
+Clone vcpkg:
 
-* Makes absence of value **explicit and type-safe**
-* Avoids undefined behavior from invalid returns (e.g., null pointers or invalid spans)
-* Forces the caller to **handle failure cases explicitly**
-* Improves API clarity and correctness
-
-Example usage:
-
-```cpp
-	std::optional<std::span<float>> GetSubSpan(size_t offset, size_t count)
-    {
-        if (offset > size_ || count > size_ - offset)
-        {
-            std::cout << "Subspan out of range" << '\n';
-            
-            return std::nullopt;
-        }
-        
-        return std::span<float>(data_.get() + offset, count);
-    }
+```powershell
+cd C:\Development\CPP
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+.\bootstrap-vcpkg.bat
 ```
-
-Instead of returning an invalid span or silently failing, the function can return:
-
-* `std::nullopt` → invalid request
-* valid `std::span` → safe access
 
 ---
 
-These modern C++ features improve:
+## 2. Install OpenCV
 
-* Safety
-* Expressiveness
-* Maintainability
+Install OpenCV for 64-bit Windows:
 
-while keeping performance predictable.
+```powershell
+.\vcpkg install opencv4:x64-windows
+```
+
+To verify the installation:
+
+```powershell
+.\vcpkg list | findstr opencv
+```
+
+You should see something similar to:
+
+```text
+opencv4:x64-windows
+```
+
+---
+
+# CMake Setup
+
+Create or update `CMakeLists.txt` in the project root:
+
+```cmake
+cmake_minimum_required(VERSION 3.20)
+
+project(CoreVisionUtils LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+find_package(OpenCV CONFIG REQUIRED)
+
+add_executable(CoreVisionUtils
+    ImageProcessing/ImageCodecSample.cpp
+    ImageProcessing/ImageBuffer.cpp
+    ImageProcessing/ImageCodec.cpp
+)
+
+target_include_directories(CoreVisionUtils
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/ImageProcessing
+)
+
+target_link_libraries(CoreVisionUtils
+    PRIVATE
+        ${OpenCV_LIBS}
+)
+```
+
+---
+
+# Configure the Project
+
+From the project root:
+
+```powershell
+cd C:\Development\CPP\CoreVisionUtils
+```
+
+Remove the previous CMake cache if needed:
+
+```powershell
+Remove-Item -Recurse -Force build
+```
+
+Configure the project:
+
+```powershell
+cmake -S . -B build `
+  -DCMAKE_TOOLCHAIN_FILE="C:/Development/CPP/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+  -DVCPKG_TARGET_TRIPLET=x64-windows `
+  -DOpenCV_DIR="C:/Development/CPP/vcpkg/installed/x64-windows/share/opencv4"
+```
+
+Build:
+
+```powershell
+cmake --build build
+```
+
+---
+
+# Rider Setup
+
+## 1. Open the project folder
+
+In Rider, open the folder:
+
+```text
+C:\Development\CPP\CoreVisionUtils
+```
+
+Do not open the `.sln` file.
+
+---
+
+## 2. Configure CMake options
+
+Go to:
+
+```text
+File → Settings → Build, Execution, Deployment → CMake
+```
+
+Add these CMake options:
+
+```text
+-DCMAKE_TOOLCHAIN_FILE=C:/Development/CPP/vcpkg/scripts/buildsystems/vcpkg.cmake
+-DVCPKG_TARGET_TRIPLET=x64-windows
+-DOpenCV_DIR=C:/Development/CPP/vcpkg/installed/x64-windows/share/opencv4
+```
+
+Then click:
+
+```text
+Reload CMake Project
+```
+
+---
+
+## 3. Set the working directory
+
+If the program loads files such as:
+
+```cpp
+cv::imread("Resources\\laika.png");
+```
+
+set the working directory in Rider:
+
+```text
+Run → Edit Configurations
+```
+
+Set:
+
+```text
+Working directory:
+C:\Development\CPP\CoreVisionUtils
+```
+
+This allows the executable to find images stored in the `ImageProcessing` folder.
+
+---
+
+# Quick OpenCV Test
+
+Use this code to verify OpenCV is working:
+
+```cpp
+#include <opencv2/opencv.hpp>
+#include <iostream>
+
+int main()
+{
+    std::cout << "OpenCV version: " << CV_VERSION << std::endl;
+
+    cv::Mat image = cv::imread("Resources\\laika.png");
+
+    if (image.empty())
+    {
+        std::cout << "Failed to load image" << std::endl;
+        return 1;
+    }
+
+    cv::Mat gray;
+    cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+
+    cv::imwrite("Output\\opencv_output.png", gray);
+
+    std::cout << "OpenCV test completed successfully." << std::endl;
+
+    return 0;
+}
+```
+
+Expected output:
+
+```text
+OpenCV version: 4.x.x
+OpenCV test completed successfully.
+```
+
+A new file should be generated:
+
+```text
+opencv_output.png
+```
+
+---
+
+# Notes
+
+The build folder created by Rider, such as:
+
+```text
+cmake-build-debug
+```
+
+is normal.
+
+That folder is only the build output directory.
+The project source remains in:
+
+```text
+C:\Development\CPP\CoreVisionUtils
+```
+
+If image files are not found, check the Rider working directory.
 
 ```
 
-* * *
+```
+
+## ⚠️ Important (Rider users)
+
+If Rider cannot find OpenCV, it means the CMake options were not applied.
+
+### Steps to fix:
+
+1. Go to:
+   File → Settings → Build, Execution, Deployment → CMake
+
+2. Make sure to have CMAKE  options set as:
+   -DCMAKE_TOOLCHAIN_FILE=C:/Development/CPP/vcpkg/scripts/buildsystems/vcpkg.cmake
+   -DVCPKG_TARGET_TRIPLET=x64-windows
+   -DOpenCV_DIR=C:/Development/CPP/vcpkg/installed/x64-windows/share/opencv4
+
+3. Delete the CMake cache folder:
+   cmake-build-debug/
+
+4. Click:
+   Reload CMake Project
+
+5. Verify in the CMake output that OpenCV is found
+
 

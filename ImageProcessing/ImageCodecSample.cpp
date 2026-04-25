@@ -1,53 +1,24 @@
+#include <opencv2/opencv.hpp>
 #include <iostream>
 
-#include "ImageBuffer.h"
-#include "ImageCodec.h"
-
-int main(int argc, char* argv[])
+int main()
 {
-    try
+    std::cout << "OpenCV version: " << CV_VERSION << std::endl;
+
+    cv::Mat image = cv::imread("Resources\\laika.png");
+
+    if (image.empty())
     {
-        std::optional<ImageBuffer> imageBuffer = ImageCodec::LoadRgbFromFile("laika.png");
-        
-        if (!imageBuffer.has_value())
-        {
-            return 1;
-        }
-        
-        if (!ImageCodec::SaveRgbToPng(imageBuffer.value(), "output.png"))
-        {
-            std::cout << "Save failed" << '\n';
-        }
-        
-        const int width = imageBuffer.value().GetWidth();
-        const int height = imageBuffer.value().GetHeight();
-        const int channelCount = imageBuffer.value().GetChannelCount();
-        
-        const int croppedHeight = height / 2;
-        
-        const size_t rowSize = static_cast<size_t>(width) * static_cast<size_t>(channelCount);
-        const size_t croppedWidth = croppedHeight * rowSize;
-        
-        const std::optional<std::span<const float>> topHalf = imageBuffer.value().GetSubSpan(0, croppedWidth);
-        
-        if (!topHalf.has_value())
-        {
-            return 1;
-        }
-        
-        if (!ImageCodec::SaveRgbToPng("output_top_half.png", topHalf.value(), width, croppedHeight, channelCount))
-        {
-            std::cout << "Save failed" << '\n';
-        }
-        
-        std::cout << "Image loaded and saved successfully" << '\n';
-    }
-    catch (std::exception& exception)
-    {
-        std::cout << exception.what() << '\n';    
-        
+        std::cout << "Failed to load image" << std::endl;
         return 1;
     }
-    
+
+    cv::Mat gray;
+    cv::cvtColor(image, gray, cv::COLOR_BGR2GRAY);
+
+    cv::imwrite("Output\\opencv_output.png", gray);
+
+    std::cout << "OpenCV test completed successfully." << std::endl;
+
     return 0;
 }
