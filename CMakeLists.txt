@@ -12,6 +12,8 @@ add_executable(CoreVisionUtils
     ImageProcessing/ImageCodecSample.cpp
     ImageProcessing/ImageBuffer.cpp
     ImageProcessing/ImageCodec.cpp
+        Interop/OpenCVInterop.cpp
+        Interop/OpenCVInterop.h
 )
 
 target_include_directories(CoreVisionUtils

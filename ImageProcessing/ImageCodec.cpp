@@ -2,19 +2,17 @@
 
 #include <algorithm>
 #include <iostream>
-#include <stdexcept>
-#include <vector>
 #include <memory>
+#include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include <algorithm>
-
 #include "stb_image_write.h"
 
 constexpr int RgbChannelCount = 3;
+constexpr int GrayChannelCount = 1;
 
 struct StbiImageDeleter
 {
@@ -55,12 +53,12 @@ std::optional<ImageBuffer> ImageCodec::LoadRgbFromFile(const std::string& inPath
     return buffer;
 }
 
-bool ImageCodec::SaveRgbToPng(const ImageBuffer& inBuffer, const std::string& inPath)
+bool ImageCodec::SaveToPng(const ImageBuffer& inBuffer, const std::string& inPath)
 {
-    return SaveRgbToPng(inPath, inBuffer.GetSpan(), inBuffer.GetWidth(), inBuffer.GetHeight(), RgbChannelCount);
+    return SaveToPng(inPath, inBuffer.GetSpan(), inBuffer.GetWidth(), inBuffer.GetHeight(), inBuffer.GetChannelCount());
 }
 
-bool ImageCodec::SaveRgbToPng(const std::string& inPath, const std::span<const float> inData, const int width, const int height, const int channelCount)
+bool ImageCodec::SaveToPng(const std::string& inPath, const std::span<const float> inData, const int width, const int height, const int channelCount)
 {
     if (inData.data() == nullptr)
     {
@@ -69,9 +67,9 @@ bool ImageCodec::SaveRgbToPng(const std::string& inPath, const std::span<const f
         return false;
     }
     
-    if (channelCount != RgbChannelCount)
+    if (channelCount != GrayChannelCount && channelCount != RgbChannelCount)
     {
-        std::cout << "Save RGB requires a 3-channel buffer" << '\n';
+        std::cout << "Save RGB requires a 1-channel or 3-channel buffer" << '\n';
         return false;
     }
     
