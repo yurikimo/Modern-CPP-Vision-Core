@@ -1,4 +1,3 @@
-```md
 # OpenCV Integration
 
 ## Why integrate OpenCV?
@@ -243,26 +242,12 @@ opencv_output.png
 
 # Notes
 
-The build folder created by Rider, such as:
-
-```text
-cmake-build-debug
-```
-
-is normal.
-
-That folder is only the build output directory.
-The project source remains in:
+If image files are not found, check the Rider working directory. 
 
 ```text
 C:\Development\CPP\CoreVisionUtils
 ```
 
-If image files are not found, check the Rider working directory.
-
-```
-
-```
 
 ## ⚠️ Important (Rider users)
 
